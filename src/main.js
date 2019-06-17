@@ -14,6 +14,15 @@ async function main() {
   }
 }
 
+async function clone() {
+  const { out } = await bash(`
+  cd tmp
+  cd fabasapi
+  npm run coverage
+  `);
+  console.log(out);
+}
+
 async function checkCoverage() {
   const { out } = await bash(`
   cd tmp
@@ -60,15 +69,21 @@ File                     |  % Stmts | % Branch |  % Funcs |  % Lines | Uncovered
 
 `;
 
+let matchTable = false;
+let tableEnd = false;
+
+const coverages = ['File', '% Stmts', '% Branch', '% Funcs', '% Lines'];
 out.split('\n').forEach(line => {
-  const match = line.match(/(^.*All files.*$)/g);
-  if (match) {
-    const rawLine = match[0];
-    const coverages = rawLine.match(/[\d.]*/g).filter(_ => _.match(/\d/)).map(_ => _.match(/[\d.]*/)[0]);
-    console.log(coverages);
-    console.log(out);
+  if (line.match(/(^.*All files.*$)/g)) matchTable = true;
+  if (matchTable && line.match(/(^-------------)/g)) matchTable = false;
+  if (matchTable) {
+    const rawRow = line.match(/(^.**$)/g)[0].split('').filter((_, i) => [1, 3, 5, 7, 9].includes(i)).map(_ => _.match(/;1m(.*)/)[1]);
+    const row = rawRow.map(_ => _.trim());
+    // row.splice(1, 0, rawRow[0]);
+    coverages.push(row);
   }
 });
+console.log(coverages);
 
 
 // await bash(`
