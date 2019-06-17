@@ -1,4 +1,6 @@
 #!/bin/bash
 
-CMD="$@"
-eval "$CMD"
+. tmp/tmp.sh
+
+
+

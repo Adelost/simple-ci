@@ -5,12 +5,10 @@
   "main": "rip.js",
   "scripts": {
     "start": "node src/natural.js",
-    "foo": "echo 'hello'; sleep 1; echo 'bye';",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .js",
-    "bash": "./scripts/bash.sh",
     "lint-fix": "eslint . --ext .js --fix",
-    "stagger": "cd scripts; ./run-stagger.sh"
+    "bash": "./scripts/bash.sh"
   },
   "dependencies": {
     "eslint": "^5.16.0",

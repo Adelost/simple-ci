@@ -1,37 +1,53 @@
 // const exec = require('child_process').exec;
-const { spawn, exec } = require('child_process');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
-// module.exports = function (cmd) {
-//   return new Promise(resolve => {
-//     const handle = spawn('dir');
-//     // const handle = spawn(`npm run bash -- ${cmd}`);
-//     handle.stdout.on('data', console.log);
-//     handle.stderr.on('data', console.error);
-//     handle.on('close', code => {
-//       console.log('Exit code', code);
-//       resolve(code);
-//     });
-//   });
-// };
+const TMP_FILE = path.join(__dirname, '../tmp/tmp.sh');
 
 module.exports = function (cmd) {
   return new Promise(resolve => {
-    // const handle = exec(`npm run bash -- ${cmd}`);
-    console.log('======');
-    const handle = exec(`npm run bash -- ${cmd}`, (error, stdout, stderr) => {
+    fs.writeFileSync(TMP_FILE, cmd);
+
+    let stdout = '';
+    let stderr = '';
+    let count = 0;
+    // let npmExit = false;
+    const handle = exec(`npm run bash`, (error, stdout, stderr) => {
       // console.log(stdout);
       // console.error(stderr);
       // if (error !== null) {
       //   console.error(`exec error: ${error.code}`);
       // }
-      // resolve(stdout);
-      // console.log('======');
     });
-    handle.stdout.on('data', _ => process.stdout.write(_));
-    handle.stderr.on('data', _ => process.stderr.write(_));
-    handle.on('close', _ => {
-      console.log('#CLOSE', _);
-      resolve(_);
+    handle.stdout.on('data', _ => {
+      if (count++ === 0) return;
+      process.stdout.write(_);
+      stdout += _;
+    });
+    handle.stderr.on('data', _ => {
+      // if (_.match(/npm/g)) {
+      //   npmExit = true;
+      // }
+      // if (npmExit) return;
+      process.stderr.write(_);
+      stderr += _;
+    });
+    handle.on('close', code => {
+      const out = {
+        ok: code === 0,
+        out: stdout || null,
+        err: stderr || null
+      };
+      fs.unlinkSync(TMP_FILE);
+      resolve(out);
     });
   });
 };
+
+//
+// { npm ERR! file sh
+//   npm }
+// npm ERR! file sh
+// npm{  ERR! code ELIFECYCLE
+//   npm ERR! errno ENOEN
