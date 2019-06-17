@@ -1,1 +1,1 @@
-# simple-ci
+# Simple CI
