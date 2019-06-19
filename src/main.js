@@ -1,23 +1,61 @@
 const bash = require('./bash');
 const utils = require('./utils');
 
-// main();
+const repo = {
+  api: { name: 'fabasapi', url: 'git@bitbucket.org:fabasweb/fabasapi.git' },
+  web: { name: 'fabasweb', url: 'git@bitbucket.org:fabasweb/fabasweb.git' }
+};
+const repos = [repo.api, repo.web];
+
+main();
 
 async function main() {
   while (true) {
-    await checkCoverage();
-    await bash(`git status`);
-    console.log((await bash(`git status`)).ok);
+    await cloneRepos(repos);
+    // await checkCoverage();
+    // await checkCoverage();
+    // await bash(`git status`);
+    // console.log((await bash(`git status`)).ok);
 
     console.log('Zzz');
     await utils.sleep(100);
   }
 }
 
-async function clone() {
+// await bash(`
+//     cd tmp
+//     # git clone git@bitbucket.org:fabasweb/fabasapi.git
+//     # git clone git@bitbucket.org:fabasweb/fabasweb.git
+//     cd fabasapi
+//     #npm install
+//     #git pull --rebase
+//     #npm run update
+//     npm run coverage
+//     ls
+//     `);
+
+async function cloneRepos(repos) {
+  for (const repo of repos) {
+    await bash(`
+    cd tmp
+    ls
+    #git clone ${repo.url}
+  `);
+  }
+
+  // await Promise.all(repos.map(async (repo) => {
+  //   return bash(`
+  //   cd tmp
+  //   ls
+  //   #git clone ${repo.url}
+  // `);
+  // }));
+}
+
+async function cloneRepo2(repo) {
   const { out } = await bash(`
   cd tmp
-  cd fabasapi
+  cd ${repo.name}
   npm run coverage
   `);
   console.log(out);
@@ -30,10 +68,13 @@ async function checkCoverage() {
   npm run coverage
   `);
   console.log(out);
+  console.log(out);
+
+  // const coverage = coverageFromOutput(out);
+  // console.log(coverage);
 }
 
 const out = `
-
 -------------------------|----------|----------|----------|----------|-------------------|
 File                     |  % Stmts | % Branch |  % Funcs |  % Lines | Uncovered Line #s |
 -------------------------|----------|----------|----------|----------|-------------------|
@@ -66,34 +107,32 @@ File                     |  % Stmts | % Branch |  % Funcs |  % Lines | Uncovered
 [31;1m  newsitemMeta.js       [0m |[31;1m     1.59[0m |[31;1m        0[0m |[31;1m        0[0m |[31;1m     2.22[0m |[31;1m... 11,113,114,116[0m |
 [31;1m  newsitemOpengraph.js  [0m |[31;1m     1.96[0m |[31;1m        0[0m |[31;1m        0[0m |[31;1m     2.33[0m |[31;1m... 86,89,90,91,92[0m |
 -------------------------|----------|----------|----------|----------|-------------------|
-
 `;
 
-let matchTable = false;
-let tableEnd = false;
+function coverageFromOutput(output) {
 
-const coverages = ['File', '% Stmts', '% Branch', '% Funcs', '% Lines'];
-out.split('\n').forEach(line => {
-  if (line.match(/(^.*All files.*$)/g)) matchTable = true;
-  if (matchTable && line.match(/(^-------------)/g)) matchTable = false;
-  if (matchTable) {
-    const rawRow = line.match(/(^.**$)/g)[0].split('').filter((_, i) => [1, 3, 5, 7, 9].includes(i)).map(_ => _.match(/;1m(.*)/)[1]);
-    const row = rawRow.map(_ => _.trim());
-    // row.splice(1, 0, rawRow[0]);
-    coverages.push(row);
-  }
-});
-console.log(coverages);
+  let matchTable = false;
+// 'File', '% Stmts', '% Branch', '% Funcs', '% Lines'
+  let coverages = [];
+  output.split('\n').forEach((line, i, all) => {
+    const title = all[i - 2];
+    if (title && title.match(/Uncovered Line #s/)) matchTable = true;
+    if (matchTable && line.match(/(^-------------)/)) matchTable = false;
+    if (matchTable) {
+      console.log(line);
+      // const rawRow = line.match(/(^.**$)/g)[0].split('').filter((_, i) => [1, 3, 5, 7, 9].includes(i)).map(_ => _.match(/;1m(.*)/)[1]);
+      // const row = rawRow.map(_ => _.trim());
+      // const namedRow = {
+      //   file: row[0], stmts: row[1], branch: row[2], funcs: row[3], lines: row[4]
+      // };
+      // coverages.push(namedRow);
+    }
+  });
+  return coverages;
+}
+
+// let coverages = coverageFromOutput(out);
+// console.log(coverages);
 
 
-// await bash(`
-//     cd tmp
-//     # git clone git@bitbucket.org:fabasweb/fabasapi.git
-//     # git clone git@bitbucket.org:fabasweb/fabasweb.git
-//     cd fabasapi
-//     #npm install
-//     #git pull --rebase
-//     #npm run update
-//     npm run coverage
-//     ls
-//     `);
+
