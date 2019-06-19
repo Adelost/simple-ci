@@ -1,26 +1,16 @@
+const ci = require('./ci');
 const bash = require('./bash');
-const utils = require('./utils');
 
 const repo = {
   api: { name: 'fabasapi', url: 'git@bitbucket.org:fabasweb/fabasapi.git' },
   web: { name: 'fabasweb', url: 'git@bitbucket.org:fabasweb/fabasweb.git' }
 };
-const repos = [repo.api, repo.web];
 
-main();
-
-async function main() {
-  while (true) {
-    await cloneRepos(repos);
-    // await checkCoverage();
-    // await checkCoverage();
-    // await bash(`git status`);
-    // console.log((await bash(`git status`)).ok);
-
-    console.log('Zzz');
-    await utils.sleep(100);
-  }
-}
+const repos = Object.values(repo);
+ci.start(async () => {
+  await ci.prepareRepos(repos);
+  await ci.sleep(200);
+});
 
 // await bash(`
 //     cd tmp
@@ -34,23 +24,13 @@ async function main() {
 //     ls
 //     `);
 
-async function cloneRepos(repos) {
-  for (const repo of repos) {
-    await bash(`
-    cd tmp
-    ls
-    #git clone ${repo.url}
-  `);
-  }
-
-  // await Promise.all(repos.map(async (repo) => {
-  //   return bash(`
-  //   cd tmp
-  //   ls
-  //   #git clone ${repo.url}
-  // `);
-  // }));
-}
+// await Promise.all(repos.map(async (repo) => {
+//   return bash(`
+//   cd tmp
+//   ls
+//   #git clone ${repo.url}
+// `);
+// }));
 
 async function cloneRepo2(repo) {
   const { out } = await bash(`

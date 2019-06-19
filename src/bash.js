@@ -1,51 +1,45 @@
 // const exec = require('child_process').exec;
 const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 const stripAnsi = require('strip-ansi');
-
-const TMP_FILE = path.join(__dirname, '../tmp/tmp.sh');
 
 module.exports = function (cmd) {
   return new Promise(resolve => {
-    let bufStr = Buffer.from(cmd, 'utf8').toString('base64');
-    console.log(bufStr);
-    fs.writeFileSync(TMP_FILE, cmd);
-    // echo QWxhZGRpbjpvcGVuIHNlc2FtZQ== | base64 --decode
+    cmd = Buffer.from(cmd, 'utf8').toString('base64');
     let stdout = '';
     let stderr = '';
-    let count = 0;
-    // let npmExit = false;
-    const handle = exec(`npm run bash`);
+    let log = false;
+    let exitCode = 0;
+    // const handle = exec(`npm run bash`);
+    const handle = exec(`npm run bash -- ${cmd}`);
+    // const handle = exec(`${cmd}`);
     handle.stdout.on('data', _ => {
-      if (count++ === 0) return;
-      process.stdout.write(_);
-      stdout += _;
+      const stopMatch = _.match(/__NPM_BASH_EXIT_CODE__(\d+)/);
+      if (log && stopMatch) {
+        exitCode = +stopMatch[1];
+        log = false;
+      }
+      if (log) {
+        process.stdout.write(_);
+        stdout += _;
+      }
+      if (!log && _.match(/__NPM_BASH_START__/)) log = true;
+
     });
     handle.stderr.on('data', _ => {
-      // if (_.match(/npm/g)) {
-      //   npmExit = true;
-      // }
-      // if (npmExit) return;
-      process.stderr.write(_);
-      stderr += _;
+      if (log) {
+        process.stderr.write(_);
+        stderr += _;
+      }
     });
-    handle.on('close', code => {
-
+    handle.on('close', () => {
+      // if (exitCode !== 0) console.error(`exit status ${exitCode}`);
       const out = {
-        ok: code === 0,
+        ok: exitCode === 0,
+        code: exitCode,
         out: stripAnsi(stdout) || null,
         err: stripAnsi(stderr) || null
       };
-      fs.unlinkSync(TMP_FILE);
       resolve(out);
     });
   });
 };
-
-//
-// { npm ERR! file sh
-//   npm }
-// npm ERR! file sh
-// npm{  ERR! code ELIFECYCLE
-//   npm ERR! errno ENOEN
