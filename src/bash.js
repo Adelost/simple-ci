@@ -2,44 +2,36 @@
 const { exec } = require('child_process');
 const stripAnsi = require('strip-ansi');
 
-module.exports = function (cmd) {
+module.exports = function (cmd, verbose) {
   return new Promise(resolve => {
-    cmd = Buffer.from(cmd, 'utf8').toString('base64');
-    let stdout = '';
-    let stderr = '';
+    const cmdLog = cmd.split(/\n/).map(_ => _.trim()).filter(_ => _).join('; ');
+    const cmd64 = Buffer.from(cmd, 'utf8').toString('base64');
     let log = false;
-    let exitCode = 0;
-    // const handle = exec(`npm run bash`);
-    const handle = exec(`npm run bash -- ${cmd}`);
-    // const handle = exec(`${cmd}`);
-    handle.stdout.on('data', _ => {
-      const stopMatch = _.match(/__NPM_BASH_EXIT_CODE__(\d+)/);
-      if (log && stopMatch) {
-        exitCode = +stopMatch[1];
-        log = false;
-      }
-      if (log) {
-        process.stdout.write(_);
-        stdout += _;
-      }
-      if (!log && _.match(/__NPM_BASH_START__/)) log = true;
-
-    });
-    handle.stderr.on('data', _ => {
-      if (log) {
-        process.stderr.write(_);
-        stderr += _;
-      }
-    });
-    handle.on('close', () => {
-      // if (exitCode !== 0) console.error(`exit status ${exitCode}`);
+    const handle = exec(`npm run bash -- ${cmd64}`, (_, stdout, stderr) => {
+      stdout = stripAnsi(stdout);
+      stderr = stripAnsi(stderr);
+      const match = stdout.match(/__NPM_BASH_START__\n((.|\n|\r)*)__NPM_BASH_EXIT_CODE__(\d+)/);
+      stdout = match[1];
+      const exitCode = +match[3];
       const out = {
         ok: exitCode === 0,
         code: exitCode,
-        out: stripAnsi(stdout) || null,
-        err: stripAnsi(stderr) || null
+        out: stdout || null,
+        err: stderr || null
       };
       resolve(out);
     });
+    verbose = false;
+    if (verbose) {
+      handle.stdout.on('data', _ => {
+        const stopMatch = _.match(/__NPM_BASH_EXIT_CODE__(\d+)/);
+        if (log && stopMatch) log = false;
+        if (log) process.stdout.write(_);
+        if (!log && _.match(/__NPM_BASH_START__/)) log = true;
+      });
+      handle.stderr.on('data', _ => {
+        if (log) process.stderr.write(_);
+      });
+    }
   });
 };
