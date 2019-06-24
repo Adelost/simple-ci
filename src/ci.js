@@ -3,14 +3,15 @@ const stringify = require('json-stringify-pretty-compact');
 const bash = require('./bash');
 const ci = this;
 
+exports.workdir = __dirname + '/../tmp';
 exports.threads = 4;
 exports.reapos = [];
 exports.channels = {};
 
 exports.start = async function (repos) {
-  await prepareAll(repos);
+  await initAll(repos);
   while (true) {
-    await checkUpdatesAll(repos);
+    await updateAll(repos);
     const interval = 60 * 5;
     console.log(`end of loop, next update in ${interval} secs`);
     await ci.sleep(interval);
@@ -41,39 +42,53 @@ exports.createSync = function () {
   return { promise, resolve: outerResolve };
 };
 
-async function prepareAll(repos) {
+async function initAll(repos) {
   await batch(repos.map(repo => async () => {
+    repo.out = {};
+    repo.status = {};
     if (!(await isCloned(repo))) {
+      repo.status.new = true;
       ci.log(repo, 'not cloned');
       ci.log(repo, 'cloning');
       await clone(repo);
       ci.log(repo, 'cloning DONE');
-      ci.log(repo, 'initing');
-      await init(repo);
-      ci.log(repo, 'updating');
-      await update(repo);
-      ci.log(repo, 'updating DONE');
     } else {
       ci.log(repo, 'already cloned');
     }
   }), ci.threads);
+  await batch(repos.map(repo => async () => {
+    if (repo.status.new) {
+      ci.log(repo, 'initing');
+      await init(repo);
+    } else {
+      repo.status.new = true;
+    }
+  }), ci.threads);
 }
 
-async function checkUpdatesAll(repos) {
+async function updateAll(repos) {
   let wasUpdated = false;
   await batch(repos.map(repo => async () => {
-    if (!(await isLatest(repo))) {
+    if (repo.status.new) {
+      repo.status.outdated = true;
+      repo.status.new = false;
+    } else if (!(await isLatest(repo))) {
       ci.log(repo, 'outdated');
       ci.log(repo, 'rebasing');
       await rebase(repo);
-      ci.log(repo, 'updating');
-      await update(repo);
-      ci.log(repo, 'updating DONE');
-      wasUpdated = true;
+      repo.status.outdated = true;
     } else {
       ci.log(repo, 'up-to-date');
     }
   }), ci.threads);
+  await batch(repos.map(repo => async () => {
+    if (repo.status.outdated) {
+      ci.log(repo, 'updating');
+      await update(repo);
+      wasUpdated = true;
+      ci.log(repo, 'updating DONE');
+    }
+  }), 1);
   if (wasUpdated) {
     console.log('saving result');
     saveResult(repos);

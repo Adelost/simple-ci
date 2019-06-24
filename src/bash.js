@@ -21,7 +21,7 @@ module.exports = function (cmd, verbose) {
       };
       resolve(out);
     });
-    verbose = false;
+    verbose = true;
     if (verbose) {
       handle.stdout.on('data', _ => {
         const stopMatch = _.match(/__NPM_BASH_EXIT_CODE__(\d+)/);
