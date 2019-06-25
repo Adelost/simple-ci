@@ -1,5 +1,8 @@
+const path = require('path');
 const ci = require('./ci');
 const resultTo = require('./result-to');
+
+ci.workdir = path.join(__dirname, '/../tmp/ci');
 
 const repo = {
   api: {
@@ -33,11 +36,11 @@ const repo = {
     onUpdate: async ({ log, run }) => {
       log('updating npm');
       await run('npm install');
-    },
-    onAtomicUpdate: async ({ log, run, out }) => {
-      log('running e2e');
-      out.e2e = await run('npm run e2e').then(resultTo.e2e);
     }
+    // onAtomicUpdate: async ({ log, run, out }) => {
+    //   log('running e2e');
+    //   out.e2e = await run('npm run e2e').then(resultTo.e2e);
+    // }
   }
 };
 

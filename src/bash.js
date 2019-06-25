@@ -4,7 +4,6 @@ const stripAnsi = require('strip-ansi');
 
 module.exports = function (cmd, verbose) {
   return new Promise(resolve => {
-    const cmdLog = cmd.split(/\n/).map(_ => _.trim()).filter(_ => _).join('; ');
     const cmd64 = Buffer.from(cmd, 'utf8').toString('base64');
     let log = false;
     const handle = exec(`npm run bash -- ${cmd64}`, (_, stdout, stderr) => {

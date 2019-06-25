@@ -1,10 +1,14 @@
 {
-  "name": "ripcomic",
+  "name": "easy-ci",
   "version": "1.0.0",
   "description": "",
   "main": "rip.js",
+  "author": {
+    "name": "Mattias E. O. Andersson",
+    "email": "adelost@gmail.com"
+  },
   "scripts": {
-    "start": "node src/natural.js",
+    "start": "node src/main.js",
     "test": "mocha",
     "coverage": "nyc mocha",
     "lint": "eslint . --ext .js",

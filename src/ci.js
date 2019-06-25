@@ -1,14 +1,16 @@
 const fs = require('fs');
+const path = require('path');
 const stringify = require('json-stringify-pretty-compact');
 const bash = require('./bash');
 const ci = this;
 
-exports.workdir = __dirname + '/../tmp';
+exports.workdir = path.join(__dirname, '/../tmp');
 exports.threads = 4;
 exports.reapos = [];
 exports.channels = {};
 
-exports.start = async function (repos, interval) {
+exports.start = async function(repos, interval) {
+  await bash(`mkdir -p ${exports.workdir}`);
   await initAll(repos);
   while (true) {
     await updateAll(repos);
@@ -17,22 +19,22 @@ exports.start = async function (repos, interval) {
   }
 };
 
-exports.sleep = function (ms) {
+exports.sleep = function(ms) {
   return new Promise(resolve => setTimeout(resolve, Math.ceil(ms * 1000)));
 };
 
-exports.bash = async function (repo, cmd) {
+exports.bash = async function(repo, cmd) {
   return bash(`
   ${shToRepo(repo)}
   ${cmd}
   `);
 };
 
-exports.log = function (repo, msg) {
+exports.log = function(repo, msg) {
   console.log(`${msg} (${repo.name})`);
 };
 
-exports.createSync = function () {
+exports.createSync = function() {
   let outerResolve = null;
   const promise = new Promise(resolve => (outerResolve = resolve));
   return { promise, resolve: outerResolve };
@@ -123,7 +125,7 @@ async function batch(workers, batchSize) {
 }
 
 async function isCloned(repo) {
-  return (await bash(`test -d ${repo.dir}`)).ok;
+  return (await bash(`cd '${ci.workdir}'; test -d ${repo.dir}`)).ok;
 }
 
 async function init(repo) {
@@ -133,7 +135,7 @@ async function init(repo) {
 }
 
 async function clone(repo) {
-  await bash(`git clone ${repo.url}`);
+  await bash(`cd '${ci.workdir}'; git clone ${repo.url}`);
 }
 
 async function isLatest(repo) {
@@ -148,7 +150,7 @@ async function rebase(repo) {
 }
 
 function shToRepo(repo) {
-  return `cd '${repo.dir}'`;
+  return `cd '${ci.workdir}/${repo.dir}'`;
 }
 
 function resultToIsLatest(res) {
@@ -160,7 +162,7 @@ function saveResult(repos) {
   repos.forEach(_ => {
     if (_.out) out[_.name] = _.out;
   });
-  fs.writeFileSync(__dirname + '/../tmp/result.json', stringify(out), 'utf8');
+  fs.writeFileSync(`${ci.workdir}/result.json`, stringify(out), 'utf8');
 }
 
 function fnParams(repo) {
