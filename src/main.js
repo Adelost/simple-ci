@@ -6,15 +6,16 @@ const repo = {
     name: 'api',
     dir: 'fabasapi',
     url: 'git@bitbucket.org:fabasweb/fabasapi.git',
-    onInit: async ({ log, run }) => {
+    onInit: async ({ run }) => {
       await run('npm install');
       await run('npm run update-env');
     },
-    onUpdate: async ({ log, run, out }) => {
-      // await run('npm start');
+    onUpdate: async ({ log, run }) => {
       log('updating npm');
       await run('npm install');
       await run('npm run update-env');
+    },
+    onAtomicUpdate: async ({ log, run, out }) => {
       log('running coverage');
       const coverageResult = await run('npm run coverage');
       out.test = resultTo.testResult(coverageResult);
@@ -25,17 +26,19 @@ const repo = {
     name: 'web',
     dir: 'fabasweb',
     url: 'git@bitbucket.org:fabasweb/fabasweb.git',
-    onInit: async ({ log, run }) => {
+    onInit: async ({ run }) => {
       await run('npm install');
-      await run('npm run e2e-install');
+      await run('npm run e2e-install -- --versions.chrome 74.0.3729.6');
     },
-    onUpdate: async ({ log, run, out }) => {
+    onUpdate: async ({ log, run }) => {
       log('updating npm');
       await run('npm install');
-      // log('running e2e');
-      // out.e2e = await run('npm run e2e').then(resultTo.e2e);
+    },
+    onAtomicUpdate: async ({ log, run, out }) => {
+      log('running e2e');
+      out.e2e = await run('npm run e2e').then(resultTo.e2e);
     }
   }
 };
 
-ci.start(Object.values(repo));
+ci.start(Object.values(repo), 20);

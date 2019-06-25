@@ -4,3 +4,4 @@
 /.nyc_output
 /out
 package-lock.json
+/tmp/*

@@ -8,11 +8,10 @@ exports.threads = 4;
 exports.reapos = [];
 exports.channels = {};
 
-exports.start = async function (repos) {
+exports.start = async function (repos, interval) {
   await initAll(repos);
   while (true) {
     await updateAll(repos);
-    const interval = 60 * 5;
     console.log(`end of loop, next update in ${interval} secs`);
     await ci.sleep(interval);
   }
@@ -30,10 +29,7 @@ exports.bash = async function (repo, cmd) {
 };
 
 exports.log = function (repo, msg) {
-  if (!msg) {
-    console.log(msg);
-  }
-  console.log(`${repo.name} - ${msg}`);
+  console.log(`${msg} (${repo.name})`);
 };
 
 exports.createSync = function () {
@@ -46,22 +42,26 @@ async function initAll(repos) {
   await batch(repos.map(repo => async () => {
     repo.out = {};
     repo.status = {};
+    repo.status.new = true;
+    repo.status.installed = false;
+    repo.status.shouldUpdate = true;
     if (!(await isCloned(repo))) {
-      repo.status.new = true;
       ci.log(repo, 'not cloned');
       ci.log(repo, 'cloning');
       await clone(repo);
       ci.log(repo, 'cloning DONE');
     } else {
+      repo.status.installed = true;
       ci.log(repo, 'already cloned');
     }
   }), ci.threads);
   await batch(repos.map(repo => async () => {
-    if (repo.status.new) {
-      ci.log(repo, 'initing');
+    if (!repo.status.installed) {
+      ci.log(repo, 'installing');
       await init(repo);
+      repo.status.installed = true;
     } else {
-      repo.status.new = true;
+      ci.log(repo, 'already installed');
     }
   }), ci.threads);
 }
@@ -70,28 +70,48 @@ async function updateAll(repos) {
   let wasUpdated = false;
   await batch(repos.map(repo => async () => {
     if (repo.status.new) {
-      repo.status.outdated = true;
       repo.status.new = false;
-    } else if (!(await isLatest(repo))) {
+      return;
+    }
+    ci.log(repo, 'checking for updates');
+    if (!(await isLatest(repo))) {
       ci.log(repo, 'outdated');
       ci.log(repo, 'rebasing');
       await rebase(repo);
-      repo.status.outdated = true;
-    } else {
-      ci.log(repo, 'up-to-date');
+      repo.status.shouldUpdate = true;
+      return;
+    }
+    ci.log(repo, 'up-to-date');
+  }), ci.threads);
+  await batch(repos.map(repo => async () => {
+    if (repo.status.shouldUpdate) {
+      if (repo.onUpdate) {
+        ci.log(repo, 'updating');
+        await repo.onUpdate(fnParams(repo));
+        ci.log(repo, 'updating DONE');
+      }
     }
   }), ci.threads);
   await batch(repos.map(repo => async () => {
-    if (repo.status.outdated) {
-      ci.log(repo, 'updating');
-      await update(repo);
-      wasUpdated = true;
-      ci.log(repo, 'updating DONE');
+    if (repo.status.shouldUpdate) {
+      if (repo.onAtomicUpdate) {
+        ci.log(repo, 'atomic updating');
+        await repo.onAtomicUpdate(fnParams(repo));
+        ci.log(repo, 'atomic updating DONE');
+      }
     }
   }), 1);
+  repos.forEach(repo => {
+    if (repo.status.shouldUpdate) {
+      repo.status.shouldUpdate = false;
+      wasUpdated = true;
+    }
+  });
   if (wasUpdated) {
     console.log('saving result');
     saveResult(repos);
+  } else {
+    console.log('all up-to-date');
   }
 }
 
@@ -109,12 +129,6 @@ async function isCloned(repo) {
 async function init(repo) {
   if (repo.onInit) {
     await repo.onInit(fnParams(repo));
-  }
-}
-
-async function update(repo) {
-  if (repo.onUpdate) {
-    await repo.onUpdate(fnParams(repo));
   }
 }
 
